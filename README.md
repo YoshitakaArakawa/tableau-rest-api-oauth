@@ -1,6 +1,8 @@
 # tableau-rest-api-oauth
 
-Tableau REST API を **ユーザのブラウザサインインを経た OAuth access_token** で叩く最小実装。Python 標準ライブラリのみ、外部依存ゼロ。
+> **Unofficial / 非公式**: 本リポは Tableau Software, LLC とは無関係の個人プロジェクトであり、Tableau の公式プロダクト・サポート対象ではない。商標 "Tableau" は識別目的でのみ使用している。
+
+Tableau Cloud で **ユーザのブラウザサインインから OAuth access_token を取得し、それを `X-Tableau-Auth` ヘッダで REST API に渡す** ところまでを Python スクリプトで通す最小実装。Python 標準ライブラリのみ、外部依存ゼロ。`examples/` 配下にエンドポイント別の example スクリプトを置き、共通の OAuth フローは `examples/_shared/` に分離している。
 
 ## なぜこのリポがあるか
 
@@ -16,7 +18,7 @@ Tableau の公式 [REST API Authentication Methods](https://help.tableau.com/cur
 
 ## 動作要件
 
-- Python 3.10+（型ヒント `dict[str, str]` 等を使用、3.10 から動く）
+- Python 3.10+
 - Tableau Cloud アカウント（Tableau Server 2025.3+ も同じ仕組みで動くはずだが本リポでは未確認）
 - ブラウザ（OAuth サインイン用）
 
@@ -27,36 +29,18 @@ git clone https://github.com/<owner>/tableau-rest-api-oauth.git
 cd tableau-rest-api-oauth
 cp .env.example .env
 # .env を実値で埋める
-python oauth_flow.py flow
+
+# 用途に応じて好きな example を実行
+python examples/list_datasources.py
+python examples/list_workbooks.py
+python examples/list_projects.py
 ```
 
-ブラウザが自動で開いて Tableau Cloud のサインイン画面が出る → サインインすると `http://127.0.0.1:8765/Callback` に戻ってきて、ターミナルに access_token の構造と取得したデータソース一覧が表示される。
+実行するとブラウザが自動で開いて Tableau Cloud のサインイン画面が出る → サインインすると `http://127.0.0.1:8765/Callback` に戻ってきて、ターミナルに access_token の情報と各 example 固有の一覧（最大 25 件）が表示される。
 
-### `.env` の中身
+設定する環境変数は [`.env.example`](.env.example) 参照（`TABLEAU_SERVER` / `TABLEAU_SITE_NAME` / `LOCAL_CALLBACK_PORT` の 3 つ）。
 
-```dotenv
-TABLEAU_SERVER=https://<pod>.online.tableau.com   # 自テナントの pod URL
-TABLEAU_SITE_NAME=<your-content-url>              # Content URL（display name ではない）
-LOCAL_CALLBACK_PORT=8765
-```
-
-### 3 つのモード
-
-```bash
-# 1. authorization_code grant（デフォルト）: ブラウザサインイン → token → REST API
-python oauth_flow.py flow
-
-# 1b. client_type を変えて挙動を見る（自由値で OK、Tableau Cloud は値検証していない）
-python oauth_flow.py flow --client-type my-app
-
-# 2. refresh_token grant: 前回 flow で得た refresh_token を使って再取得
-python oauth_flow.py refresh
-
-# 3. /api/serverinfo（無認証）: productVersion / restApiVersion 確認
-python oauth_flow.py serverinfo
-```
-
-`flow` 成功時に `.token-cache.json`（gitignored）に `client_id` / `refresh_token` / `site_namespace` / `origin_host` 等を保存。`refresh` モードがこれを読み、毎回 rotation された新 refresh_token でファイルを上書きする（OAuth 2.1 準拠の挙動）。
+各 example は OAuth フロー / HTTP ヘルパー / env 読み込みを [`examples/_shared/`](examples/_shared/) に分離しており、example 固有のコードは REST 呼び出し関数（`fetch_datasources` / `fetch_workbooks` / `fetch_projects`）だけ。別エンドポイントを試したい場合はこれらを差し替えるか、新しい example を 1 ファイル追加する。
 
 ## 仕組み
 
@@ -101,9 +85,8 @@ python oauth_flow.py serverinfo
 
 | 弱点 | 内容 |
 | --- | --- |
-| **refresh_token の平文保存** | `.token-cache.json` に refresh_token が平文。OS のファイル ACL のみが防御 |
+| **毎回ブラウザサインイン** | `refresh_token` を保存していないので、再実行のたびにサインインが要る。観察用途では十分だが運用には不向き |
 | **localhost 限定** | 本番ホストの redirect_uri は Tableau Cloud が許可していない |
-| **アタックサーフェスの分散** | 各ユーザ PC で listener を立てる構成。中央集権 web app の方が監査・防御しやすい |
 | **scope 制限が効きづらい** | Tableau access_token は site 全権限相当 |
 
 Production で REST API をユーザ文脈で叩きたい場合は、Tableau 公式ルートを推奨:
@@ -111,18 +94,6 @@ Production で REST API をユーザ文脈で叩きたい場合は、Tableau 公
 - **[Connected App with OAuth 2.0 Trust (EAS)](https://help.tableau.com/current/online/en-us/connected_apps_eas.htm)**: 外部 IdP の JWT を `Authorization: Bearer` で REST API に渡す
 - **Unified Access Token (UAT)**: 自前で署名した JWT を渡す
 - **Personal Access Token (PAT)**: 簡単だが concurrent 不可
-
-## ファイル構成
-
-```
-oauth_flow.py        # メインスクリプト (argparse、3 モード対応)
-.env.example         # 環境変数テンプレート
-.env                 # 実値（gitignored、自分でコピーして編集）
-.token-cache.json    # refresh_token 等のキャッシュ（gitignored、flow 成功時に自動生成）
-.gitignore
-LICENSE              # MIT
-README.md
-```
 
 ## 参考
 
