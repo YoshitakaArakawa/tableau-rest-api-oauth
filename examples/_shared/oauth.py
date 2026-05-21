@@ -12,8 +12,10 @@ import urllib.parse
 import uuid
 import webbrowser
 
-from ._constants import CLIENT_TYPE
 from .http import http_post_form
+
+
+CLIENT_TYPE = "tableau-rest-api-oauth"
 
 
 # ----- PKCE -----
