@@ -77,23 +77,16 @@ python examples/list_projects.py
 
 - **`redirect_uri` の path は `/Callback`（大文字 C 固定）**。`/cb` 等にすると Tableau Cloud が `{"error": "invalid_request"}` を返す。
 - **host は `127.0.0.1` 必須**（Tableau Cloud の制約）。Tableau Server なら admin が `tsm configuration set -k oauth.allowed_redirect_uri_hosts -v <host>` で任意ホストを許可リスト追加できる。
-- **Tableau Cloud の本番ホスト構成は未対応**（執筆時点）。Tableau MCP の[公式 docs](https://github.com/tableau/tableau-mcp/blob/main/docs/docs/configuration/mcp-config/oauth.md) によると ETA Q2 2026。
+- **Tableau Cloud の本番ホスト構成は未対応**（20260521 時点）。最新状況は Tableau MCP の[公式 docs](https://github.com/tableau/tableau-mcp/blob/main/docs/docs/configuration/mcp-config/oauth.md) を参照。
 
-## 制約 / 警告
+## 制約
 
-本リポは **学習・実験用**。Production 用途には推奨しない理由:
+本リポは **対話的利用**（人がブラウザでサインインする）を前提とした最小実装:
 
-| 弱点 | 内容 |
+| 制約 | 内容 |
 | --- | --- |
-| **毎回ブラウザサインイン** | `refresh_token` を保存していないので、再実行のたびにサインインが要る。観察用途では十分だが運用には不向き |
-| **localhost 限定** | 本番ホストの redirect_uri は Tableau Cloud が許可していない |
-| **scope 制限が効きづらい** | Tableau access_token は site 全権限相当 |
-
-Production で REST API をユーザ文脈で叩きたい場合は、Tableau 公式ルートを推奨:
-
-- **[Connected App with OAuth 2.0 Trust (EAS)](https://help.tableau.com/current/online/en-us/connected_apps_eas.htm)**: 外部 IdP の JWT を `Authorization: Bearer` で REST API に渡す
-- **Unified Access Token (UAT)**: 自前で署名した JWT を渡す
-- **Personal Access Token (PAT)**: 簡単だが concurrent 不可
+| **毎回ブラウザサインイン** | refresh_token を保存していないので、再実行のたびにサインインが要る |
+| **localhost 限定** | Tableau Cloud の制約で redirect_uri は 127.0.0.1 のみ。本番ホスト未対応 |
 
 ## 参考
 
